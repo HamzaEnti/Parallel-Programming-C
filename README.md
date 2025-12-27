@@ -132,5 +132,3 @@ Below is a qualitative analysis of the expected performance based on the impleme
 2. **OpenMP Optimization:**
 * **V1:** Experience significant slowdowns on high-core-count machines due to atomic contention.
 * **V3:** Should demonstrate near-ideal linear speedup (). The optimization of checking the stop condition only periodically (every 64k iterations) is the critical factor allowing this scalability.
-
-Developed as a study on High-Performance Computing architectures and parallel programming patterns.
