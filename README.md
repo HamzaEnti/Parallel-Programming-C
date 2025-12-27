@@ -9,7 +9,7 @@ The projects included in this repository explore critical aspects of parallel so
 The repository is divided into two distinct modules, each addressing a specific computational problem solved through parallelization strategies.
 
 ### 1. Distributed Prime Number Counter (MPI)
-**Directory:** mpi_prime_numbers/
+**Directory:** `mpi_prime_numbers/`
 
 This module solves a data-parallel problem: identifying and counting prime numbers within a massive dataset. In a distributed memory environment, processors cannot access a shared address space. Therefore, this implementation explicitly manages memory and communication between nodes.
 
@@ -18,22 +18,22 @@ This module solves a data-parallel problem: identifying and counting prime numbe
 * **MPI_Scatter:** Instead of sending the entire array to every node (which would exhaust memory), the program uses `MPI_Scatter` to distribute only the specific workload chunk to each worker process.
 * **Local Computation:** Each process executes a primality test (Trial Division algorithm) on its local buffer independently.
 * **MPI_Reduce:** The partial results (local counts) are aggregated back to the root process using a reduction operation with the `MPI_SUM` operator.
-* **Token Ring Topology:** After the primary computation, the program establishes a logical ring topology where a "token" is passed sequentially from process `i` to `i+1`. This demonstrates strict point-to-point synchronization and message ordering (`MPI_Send` and `MPI_Recv`).
+* **Token Ring Topology:** After the primary computation, the program establishes a logical ring topology where a "token" is passed sequentially from process `i` to `i+1`. This demonstrates strict point-to-point synchronization and message ordering using `MPI_Send` and `MPI_Recv`.
 
 ### 2. SHA-256 Password Cracker (OpenMP)
-**Directory:** openmp_password_crack/
+**Directory:** `openmp_password_crack/`
 
 This module implements a multithreaded brute-force attack to reverse a SHA-256 cryptographic hash. The goal is to find a 6-character alphanumeric password corresponding to a given hash target. This project is particularly significant as it demonstrates the evolution of code optimization.
 
 **Implemented Versions & Optimization Analysis:**
 
 * **Version 1 (Naive Parallelization):**
-    * **Strategy:** Launches parallel threads where each thread attempts to find the password.
+    * **Strategy:** Launches parallel threads where each thread attempts to find the password using `schedule(static)`.
     * **Bottleneck:** It checks the global boolean flag `trobat` (found) in every single iteration. This causes "False Sharing" and high bus traffic because the cache line containing the flag is constantly being invalidated and updated across cores.
     * **Result:** High CPU overhead and suboptimal scaling.
 
 * **Version 2 (Dynamic Scheduling):**
-    * **Strategy:** Uses `schedule(dynamic, chunk_size)` to assign blocks of iterations to threads at runtime.
+    * **Strategy:** Uses `schedule(dynamic, 65536)` to assign blocks of iterations to threads at runtime.
     * **Use Case:** This is typically useful when iterations take varying amounts of time. However, in this specific cryptographic scenario, hashing takes constant time, so the overhead of dynamic scheduling management may slightly degrade performance compared to static scheduling.
 
 * **Version 3 (Optimized - Static & Local Buffering):**
@@ -56,13 +56,16 @@ To compile and run these projects, the following dependencies are required:
 A centralized `Makefile` is provided to streamline the build process. It handles the linking of necessary libraries (OpenSSL, Math) and applies compiler optimizations (`-O3`).
 
 1.  **Clone the repository:**
-    (Assuming you have git installed)
-    git clone https://github.com/HamzaEnti/Parallel-Programming-C.git
+    ```bash
+    git clone [https://github.com/HamzaEnti/Parallel-Programming-C.git](https://github.com/HamzaEnti/Parallel-Programming-C.git)
     cd Parallel-Programming-C
+    ```
 
 2.  **Build the solution:**
     Execute the following command in the root directory:
+    ```bash
     make
+    ```
 
     This will generate the following executables:
     * `mpi_prime_numbers/mpi_seq` (Sequential baseline)
@@ -74,7 +77,9 @@ A centralized `Makefile` is provided to streamline the build process. It handles
 
 3.  **Clean build artifacts:**
     To remove object files and executables:
+    ```bash
     make clean
+    ```
 
 ## Usage Guide
 
@@ -82,11 +87,18 @@ A centralized `Makefile` is provided to streamline the build process. It handles
 
 The MPI program requires the `mpirun` wrapper to spawn processes. The program accepts one argument: the size of the array to be generated.
 
-Syntax:
+**Syntax:**
+```bash
 mpirun -n <number_of_processes> ./mpi_prime_numbers/mpi_par <array_size>
 
-Example (Running on 4 cores with 10 million elements):
+```
+
+**Example (Running on 4 cores with 10 million elements):**
+
+```bash
 mpirun -n 4 ./mpi_prime_numbers/mpi_par 10000000
+
+```
 
 *Note: For the Scatter operation to work perfectly in this educational example, ensure the array_size is divisible by the number_of_processes.*
 
@@ -94,25 +106,31 @@ mpirun -n 4 ./mpi_prime_numbers/mpi_par 10000000
 
 The OpenMP programs run directly as standard executables. They utilize all available CPU cores by default (or the number specified in the `OMP_NUM_THREADS` environment variable).
 
-Syntax:
+**Syntax:**
+
+```bash
 ./openmp_password_crack/omp_v3 <max_iterations> <password_length> <target_hash>
 
-Example Scenario:
-We want to recover the password for the hash corresponding to the string "abc".
-Target Hash: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+```
 
-Command:
+**Example Scenario:**
+We want to recover the password for the hash corresponding to the string "abc".
+Target Hash: `ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`
+
+**Command:**
+
+```bash
 ./openmp_password_crack/omp_v3 1000000 3 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+
+```
 
 ## Performance Benchmarks
 
 Below is a qualitative analysis of the expected performance based on the implementation strategies:
 
-1.  **MPI Scaling:** The Prime Counter shows linear speedup as the dataset size ($N$) increases. For small $N$, the communication overhead of `MPI_Scatter` may result in performance lower than the sequential version. Efficiency increases significantly when the computation time per chunk exceeds the network transmission time.
+1. **MPI Scaling:** The Prime Counter shows linear speedup as the dataset size () increases. For small , the communication overhead of `MPI_Scatter` may result in performance lower than the sequential version. Efficiency increases significantly when the computation time per chunk exceeds the network transmission time.
+2. **OpenMP Optimization:**
+* **V1:** Experience significant slowdowns on high-core-count machines due to atomic contention.
+* **V3:** Should demonstrate near-ideal linear speedup (). The optimization of checking the stop condition only periodically (every 64k iterations) is the critical factor allowing this scalability.
 
-2.  **OpenMP Optimization:**
-    * **V1:** Experience significant slowdowns on high-core-count machines due to atomic contention.
-    * **V3:** Should demonstrate near-ideal linear speedup ($Speedup \approx Number\_of\_Cores$). The optimization of checking the stop condition only periodically (every 64k iterations) is the critical factor allowing this scalability.
-
----
 Developed as a study on High-Performance Computing architectures and parallel programming patterns.
